@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<bindings xmlns="http://www.mozilla.org/xbl">
+  <binding id="js" extends="chrome://global/content/bindings/toolbarbutton.xml#menu">
+    <implementation>
+      <constructor><![CDATA[
+        if (window.userChromeJsMod) return;
+        window.userChromeJsMod = true;
+        let xulFiles = [],
+            chromeFiles = FileUtils.getDir("UChrm", []).directoryEntries,
+            ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService),
+            sss = Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService),
+            scriptloader = Cc["@mozilla.org/moz/jssubscript-loader;1"].getService(Ci.mozIJSSubScriptLoader);
+        while (chromeFiles.hasMoreElements()) {
+          let file = chromeFiles.getNext().QueryInterface(Ci.nsIFile),
+              fileURI = ios.newFileURI(file);
+          if (file.isFile()) {
+            if (/(^userChrome|(\.uc)?)\.js$/i.test(file.leafName)) 
+              scriptloader.loadSubScriptWithOptions(fileURI.spec, {target: window, ignoreCache: true});
+            else if (/(^userChrome|(\.uc)?)\.xul$/i.test(file.leafName)) xulFiles.push(fileURI.spec);
+            else if (/\.as\.css$/i.test(file.leafName)) {
+              if (!sss.sheetRegistered(fileURI, sss.AGENT_SHEET)) sss.loadAndRegisterSheet(fileURI, sss.AGENT_SHEET);
+            } else if (/^(?!(userChrome|userContent)\.css$).+\.css$/i.test(file.leafName)) {
+              if (!sss.sheetRegistered(fileURI, sss.USER_SHEET)) sss.loadAndRegisterSheet(fileURI, sss.USER_SHEET);
+        } } }
+        setTimeout(function loadXUL() {
+          if (xulFiles.length > 0) {
+            document.loadOverlay(xulFiles.shift(), null);
+            setTimeout(loadXUL, 5);
+          }
+        }, 0);
+      ]]></constructor>
+    </implementation>
+  </binding>
+</bindings>
